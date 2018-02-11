@@ -133,6 +133,33 @@ RocketChat.API.v1.addRoute('channels.close', { authRequired: true }, {
 	}
 });
 
+RocketChat.API.v1.addRoute('channels.counters', { authRequired: true }, {
+	get() {
+		const ruserId = this.requestParams().userId;
+		let user = this.userId;
+		if(ruserId) {
+			if (!RocketChat.authz.hasPermission(this.userId, 'view-room-administration')) {
+				return RocketChat.API.v1.unauthorized();
+			}
+			user = ruserId;
+		}
+		const group = findChannelByIdOrName({
+			params: this.requestParams(),
+			userId: user
+		});
+		const unreadmsg = RocketChat.models.Messages.countVisibleByRoomIdBetweenTimestampsInclusive(group.rid, group.ls, group._room.lm);
+
+		return RocketChat.API.v1.success({
+			members: group._room.usernames.length,
+			unreads: unreadmsg,
+			unreadsFrom: group.ls,
+			msgs: group._room.msgs,
+			latest: group._room.lm,
+			userMentions: group.userMentions
+		});
+	}
+});
+
 // Channel -> create
 
 function createChannelValidator(params) {
